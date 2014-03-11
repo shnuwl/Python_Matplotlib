@@ -1,8 +1,72 @@
+import wx, string
 import numpy as np
 import matplotlib.pyplot as plt
 from mypcap import Pcap
 tp,AntNum,a_sita,nlA,a_beam = None,4,None,None,None
 theta,powAnt,Fc,Mf1Value,AntDistance = None,None,None,None,None
+switch, draw, polar = True, 1, True
+userText0, userText1, userText2, userText3 = None, None, None, None
+  
+class TopPanel(wx.Panel):
+    def __init__(self,parent):
+        wx.Panel.__init__(self,parent)
+        userLabel=wx.StaticText(self,-1,"Input WeightVector:",pos=(-1,40))
+        self.userText0=wx.TextCtrl(self,-1,"",pos=(-1,70),size=(50,-1))
+        self.userText1=wx.TextCtrl(self,-1,"",pos=(60,70),size=(50,-1))
+        self.userText2=wx.TextCtrl(self,-1,"",pos=(120,70),size=(50,-1))
+        self.userText3=wx.TextCtrl(self,-1,"",pos=(180,70),size=(50,-1))
+        self.toggleBtn = wx.Button(self, wx.ID_ANY,"Stop",pos=(50,-1))
+        self.toggleBtn.Bind(wx.EVT_BUTTON, self.OnToggle)
+        self.bStart = True
+        self.toggleBtn0 = wx.Button(self, wx.ID_ANY,"Rect_polar",pos=(220,-1))
+        self.toggleBtn0.Bind(wx.EVT_BUTTON, self.OnToggle0)
+        self.polar = False
+        self.toggleBtn1 = wx.Button(self, wx.ID_ANY,"Draw",pos=(240, 68))
+        self.toggleBtn1.Bind(wx.EVT_BUTTON, self.OnToggle1)
+
+    def StartTimer(self):
+        global switch
+        switch, self.bStart = False, False
+        self.toggleBtn.SetLabel("Start")
+
+    def StopTimer(self):
+        global switch, draw
+        switch, self.bStart, draw = True, True, 1
+        self.toggleBtn.SetLabel("Stop")
+
+    def Only_polar(self):
+        global polar
+        polar = True
+        self.toggleBtn0.SetLabel("Rect_polar")
+
+    def Rect_polar(self):
+        global polar
+        polar = False
+        self.toggleBtn0.SetLabel("Only_polar")
+
+    def OnToggle(self, event):
+        if self.bStart:
+            self.StartTimer()
+        else:
+            self.StopTimer()
+
+    def OnToggle0(self, event):
+        if polar:
+            self.Rect_polar()
+        else:
+            self.Only_polar()
+
+    def OnToggle1(self, event):
+        global userText0, userText1, userText2, userText3, draw
+        userText0, userText1 = string.atof(self.userText0.GetValue()), string.atof(self.userText1.GetValue())
+        userText2, userText3 = string.atof(self.userText2.GetValue()),string.atof(self.userText3.GetValue())
+        draw = 0
+              
+class TopFrame(wx.Frame):
+    def __init__(self):
+        wx.Frame.__init__(self, None, title="Control Panel", size = (400,200))
+        TopPanel(self) 
+          
 class Plot:
     def __init__(self):
         self.only_polar = True
@@ -13,8 +77,20 @@ class Plot:
         p = Pcap().get_vector()
         fig = plt.figure(figsize=(16,9))
         while 1:
-            only_polar,WeightVector = p.next()
-            if only_polar == "True":
+            global draw
+            if draw == 0:
+                draw = 1
+            while not switch:
+                if draw == 0:
+                    draw = 2
+                    break
+                plt.pause(0.2)
+            fig.clf()
+            if draw == 2:
+                WeightVector = [[userText0, userText1, userText2, userText3]]
+            else:
+                WeightVector = p.next()
+            if polar:
                 fig_list = range(4)
                 fig_list[0] = fig.add_subplot(221, projection='polar')
                 fig_list[1] = fig.add_subplot(222, projection='polar')
@@ -22,11 +98,12 @@ class Plot:
                 fig_list[3] = fig.add_subplot(224, projection='polar')
                 i = 0
                 for W in WeightVector:
+                    fig_list[i].set_xticklabels(('270', '315', '0', '45', '90', '135', '180', '225'))
                     self.deal_data(W,len(fig_list),fig_list[i])
+                    fig_list[i].set_title(W,fontsize=12)
                     i += 1
                 plt.draw()
-                plt.pause(0.1)
-                fig.clf()
+                plt.pause(0.5)
             else:
                 fig_list = range(8)
                 fig_list[0] = fig.add_subplot(241)
@@ -39,11 +116,12 @@ class Plot:
                 fig_list[7] = fig.add_subplot(248, projection='polar')
                 i = 0
                 for W in WeightVector:
+                    fig_list[i+1].set_xticklabels(('270', '315', '0', '45', '90', '135', '180', '225'))
                     self.deal_data(W,len(fig_list),fig_list[i],fig_list[i+1])
+                    fig_list[i].set_title(W,fontsize=12)
                     i += 2
                 plt.draw()
-                plt.pause(0.1)
-                fig.clf()
+                plt.pause(0.5)
 
     def deal_data(self,WeightVector,len_f,*fig_l):
         global tp,AntNum,a_sita,nlA,a_beam,theta,powAnt,Fc,Mf1Value,AntDistance
@@ -63,7 +141,7 @@ class Plot:
         a_sita = np.ones(N)
         alpha = np.ones((AntNum,N),dtype=np.complex)
         for index in np.arange(1,AntNum+1):
-            alpha[index-1] = np.exp(iunit*(index-1)*2*pi/lamb*AntDistance*np.sin(theta))
+            alpha[index-1] = np.exp(iunit*(index-1)*2*pi/lamb*AntDistance*np.sin(theta-pi/2))
         a_beam = np.power(np.abs(np.dot(w,alpha)),2)* np.power(10,(a_sita/10))
         powAnt = np.power(10,(a_sita/10))*AntNum
         Mf1Value = np.max([np.max(a_beam),np.max(powAnt/AntNum),np.max(powAnt)])
@@ -92,4 +170,8 @@ class Plot:
             f2.plot(theta,a_beam,'m')
 
 if __name__ == "__main__":
+    app = wx.App()
+    frame = TopFrame()
+    frame.Show()
     Plot().main()
+    app.MainLoop()
