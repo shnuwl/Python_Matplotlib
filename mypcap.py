@@ -69,4 +69,11 @@ class Pcap:
                     yield WeightVector
                 else:
                     WeightVector = self.get_real_imag(buf[x-64:x])
+<<<<<<< HEAD
                     yield WeightVector
+=======
+                    yield WeightVector
+
+# if __name__ == "__main__":
+#     Pcap().get_vector()
+>>>>>>> 61d1efe8e110876cd206e7fd09f63b92ec3ff4ec
