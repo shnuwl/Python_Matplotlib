@@ -6,6 +6,7 @@ IUNIT = np.sqrt(-1+0j)
 class GetPcap:
     def __init__(self):
         pass
+
     def get_real_imag(self, data):
         if len(data) == 32:
             d1 = np.array([1, 2, 3, 4], dtype=complex)
@@ -51,6 +52,7 @@ class GetPcap:
                 if 12 <= y < 16:
                     d4[y-12] = real + imag
             return d1,d2,d3,d4
+
     def get_vector(self):
         CRNTI0,CRNTI1 = None,None
         x = 510
